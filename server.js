@@ -119,38 +119,10 @@ app.get('/api/users/all', async (_, res) => {
 });
 
 // ============================================
-// EXERCISES
+// EXERCISES (FIXED)
 // ============================================
 
 // Get all exercises
-app.get('/api/exercises', async (_, res) => {
-  try {
-    const [rows] = await pool.execute(
-      'SELECT exercise_id, exercise_name, description FROM exercise ORDER BY exercise_name'
-    );
-    console.log('Exercises fetched:', rows.length);
-    res.json(rows);
-  } catch (err) {
-    console.error('Failed to fetch exercises:', err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Get exercise by ID
-app.get('/api/exercises/:id', async (req, res) => {
-  try {
-    const [rows] = await pool.execute(
-      'SELECT exercise_id, exercise_name, description FROM exercise WHERE exercise_id = ?',
-      [req.params.id]
-    );
-    if (!rows.length) return res.status(404).json({ error: 'Exercise not found' });
-    res.json(rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Add new exercise
 app.get('/api/exercises', async (_, res) => {
   try {
     const [rows] = await pool.execute(
@@ -164,18 +136,16 @@ app.get('/api/exercises', async (_, res) => {
        FROM exercise
        ORDER BY exercise_name`
     );
-
-    // Debug: log the first row to confirm
-    console.log('First exercise row:', rows[0]);
-
+    
+    console.log('✅ Exercises fetched:', rows.length);
     res.json(rows);
   } catch (err) {
-    console.error('Failed to fetch exercises:', err.message);
+    console.error('❌ Failed to fetch exercises:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-
+// Get exercise by ID
 app.get('/api/exercises/:id', async (req, res) => {
   try {
     const [rows] = await pool.execute(
@@ -190,9 +160,37 @@ app.get('/api/exercises/:id', async (req, res) => {
        WHERE exercise_id = ?`,
       [req.params.id]
     );
-    if (!rows.length) return res.status(404).json({ error: 'Exercise not found' });
+    
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Exercise not found' });
+    }
+    
     res.json(rows[0]);
   } catch (err) {
+    console.error('❌ Failed to fetch exercise:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add new exercise
+app.post('/api/exercises', async (req, res) => {
+  try {
+    const { exercise_name, description, difficulty_level, equipment_needed, target_muscle_group } = req.body;
+    
+    const [result] = await pool.execute(
+      `INSERT INTO exercise 
+       (exercise_name, description, difficulty_level, equipment_needed, target_muscle_group) 
+       VALUES (?, ?, ?, ?, ?)`,
+      [exercise_name, description, difficulty_level || 'Easy', equipment_needed || null, target_muscle_group || null]
+    );
+    
+    console.log('✅ Exercise added:', result.insertId);
+    res.status(201).json({ 
+      message: 'Exercise added successfully',
+      exercise_id: result.insertId 
+    });
+  } catch (err) {
+    console.error('❌ Failed to add exercise:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -204,8 +202,11 @@ app.put('/api/exercises/:id', async (req, res) => {
     
     const [result] = await pool.execute(
       `UPDATE exercise 
-       SET exercise_name = ?, description = ?, difficulty_level = ?, 
-           equipment_needed = ?, target_muscle_group = ?
+       SET exercise_name = ?, 
+           description = ?, 
+           difficulty_level = ?, 
+           equipment_needed = ?, 
+           target_muscle_group = ?
        WHERE exercise_id = ?`,
       [exercise_name, description, difficulty_level, equipment_needed, target_muscle_group, req.params.id]
     );
@@ -214,9 +215,10 @@ app.put('/api/exercises/:id', async (req, res) => {
       return res.status(404).json({ error: 'Exercise not found' });
     }
     
+    console.log('✅ Exercise updated:', req.params.id);
     res.json({ message: 'Exercise updated successfully' });
   } catch (err) {
-    console.error('Update exercise error:', err.message);
+    console.error('❌ Failed to update exercise:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -224,7 +226,7 @@ app.put('/api/exercises/:id', async (req, res) => {
 // Delete exercise
 app.delete('/api/exercises/:id', async (req, res) => {
   try {
-    // Check if exercise is assigned to any user
+    // Check if exercise is assigned
     const [assignments] = await pool.execute(
       'SELECT COUNT(*) as count FROM exercise_assignment WHERE exercise_id = ?',
       [req.params.id]
@@ -245,13 +247,13 @@ app.delete('/api/exercises/:id', async (req, res) => {
       return res.status(404).json({ error: 'Exercise not found' });
     }
     
+    console.log('✅ Exercise deleted:', req.params.id);
     res.json({ message: 'Exercise deleted successfully' });
   } catch (err) {
-    console.error('Delete exercise error:', err.message);
+    console.error('❌ Failed to delete exercise:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
-
 
 // ============================================
 // ASSIGNMENTS
@@ -392,7 +394,7 @@ app.post('/api/health-metrics/user/:id', async (req, res) => {
 app.get('/api/education', async (req, res) => {
   try {
     const { category } = req.query;
-    let query = 'SELECT content_id, title, category, file_link, accessibility_features, url FROM educational_content';
+    let query = 'SELECT content_id, title, category, file_link, accessibility_features, FROM educational_content';
     const params = [];
     if (category) {
       query += ' WHERE category = ?';
@@ -410,7 +412,7 @@ app.get('/api/education', async (req, res) => {
 app.get('/api/education/:id', async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      'SELECT content_id, title, category, file_link, accessibility_features, url FROM educational_content WHERE content_id = ?',
+      'SELECT content_id, title, category, file_link, accessibility_features, FROM educational_content WHERE content_id = ?',
       [req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Content not found' });
