@@ -9,14 +9,14 @@ require('dotenv').config();
 
 async function setupTestUsers() {
   let connection;
-  
+
   try {
     // Connect to database
     connection = await mysql.createConnection({
-      host: process.env.DB_HOST || 'localhost',
+      host: process.env.DB_HOST || 'switchyard.proxy.rlwy.net',
       user: process.env.DB_USER || 'root',
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME || 'pwd_fitness_db'
+      password: process.env.DB_PASSWORD || 'vnwFoleMcNsKJRoxPoZGanGeZEaLqrIq',
+      database: process.env.DB_NAME || 'pwd_db'
     });
 
     console.log('✅ Connected to database');
@@ -28,29 +28,28 @@ async function setupTestUsers() {
     console.log('\n🔐 Hashing password:', testPassword);
     console.log('📝 Hash generated:', hashedPassword);
 
-    // Update existing users
+    // Test users
     const users = [
-      { username: 'johndoe', role: 'PWD' },
-      { username: 'drwilliams', role: 'THERAPIST' },
-      { username: 'drchen', role: 'THERAPIST' },
-      { username: 'marybrown', role: 'CAREGIVER' },
-      { username: 'davidg', role: 'CAREGIVER' },
-      { username: 'admin', role: 'ADMIN' }
+      { name: 'John Doe', username: 'johndoe', role: 'PWD' },
+      { name: 'Dr Williams', username: 'drwilliams', role: 'THERAPIST' },
+      { name: 'Dr Chen', username: 'drchen', role: 'THERAPIST' },
+      { name: 'Mary Brown', username: 'marybrown', role: 'CAREGIVER' },
+      { name: 'David G', username: 'davidg', role: 'CAREGIVER' },
+      { name: 'Admin', username: 'admin', role: 'ADMIN' }
     ];
 
-    console.log('\n🔄 Updating passwords for test users...\n');
+    console.log('\n🔄 Inserting/updating test users...\n');
 
     for (const user of users) {
+      // Insert or update password if user already exists
       const [result] = await connection.execute(
-        'UPDATE USER SET password = ? WHERE username = ?',
-        [hashedPassword, user.username]
+        `INSERT INTO user (name, username, password, role)
+         VALUES (?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE password = VALUES(password)`,
+        [user.name, user.username, hashedPassword, user.role]
       );
 
-      if (result.affectedRows > 0) {
-        console.log(`✅ ${user.username.padEnd(15)} (${user.role.padEnd(10)}) - Password updated`);
-      } else {
-        console.log(`⚠️  ${user.username.padEnd(15)} (${user.role.padEnd(10)}) - User not found`);
-      }
+      console.log(`✅ ${user.username.padEnd(15)} (${user.role.padEnd(10)}) - Inserted/Updated`);
     }
 
     console.log('\n✨ Setup complete!\n');
