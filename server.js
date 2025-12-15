@@ -132,6 +132,19 @@ app.get('/api/users/patients', async (_, res) => {
   }
 });
 
+app.get('/api/users/patients', async (_, res) => {
+  try {
+    const [rows] = await pool.execute(
+      `SELECT user_id, name, username, role, contact_info, disability_type 
+       FROM user WHERE role = 'PWD' ORDER BY name`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Failed to fetch patients:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 // ============================================
 // EXERCISES (FIXED)
