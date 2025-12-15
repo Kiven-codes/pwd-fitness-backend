@@ -108,24 +108,19 @@ app.get('/api/exercises/:id', async (req, res) => {
 });
 
 // Add new exercise
-app.post('/api/exercises', async (req, res) => {
+app.get('/api/exercises', async (_, res) => {
   try {
-    const { exercise_name, description } = req.body;
-    if (!exercise_name) {
-      return res.status(400).json({ error: 'Exercise name is required' });
-    }
-
-    const [result] = await pool.execute(
-      'INSERT INTO exercise (exercise_name, description) VALUES (?, ?)',
-      [exercise_name, description || '']
+    const [rows] = await pool.execute(
+      'SELECT exercise_id, exercise_name, description, difficulty FROM exercise ORDER BY exercise_name'
     );
-
-    res.status(201).json({ id: result.insertId, message: 'Exercise added successfully' });
+    console.log('Exercises fetched:', rows.length, rows); // log to check difficulty
+    res.json(rows);
   } catch (err) {
-    console.error('Failed to add exercise:', err.message);
+    console.error('Failed to fetch exercises:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // ============================================
 // ASSIGNMENTS
