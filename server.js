@@ -50,6 +50,7 @@ app.post('/api/auth/login', async (req, res) => {
         id: user.user_id,
         name: user.name,
         role: user.role,
+        contact_info: user.contact_info,
         disability_type: user.disability_type
       }
     });
@@ -57,6 +58,48 @@ app.post('/api/auth/login', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { username, password, name, role, contact_info, disability_type } = req.body;
+
+    // Check required fields
+    if (!username || !password || !name) {
+      return res.status(400).json({ error: 'Username, password, and name are required' });
+    }
+
+    // Check if user already exists
+    const [existing] = await pool.execute('SELECT * FROM user WHERE username = ?', [username]);
+    if (existing.length > 0) {
+      return res.status(400).json({ error: 'Username already exists' });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Insert new user
+    const [result] = await pool.execute(
+      'INSERT INTO user (username, password, name, role, contact_info, disability_type) VALUES (?, ?, ?, ?, ?, ?)',
+      [username, hashedPassword, name, role || 'user', contact_info || null, disability_type || null]
+    );
+
+    res.status(201).json({
+      message: 'User registered successfully',
+      user: {
+        id: result.insertId,
+        username,
+        name,
+        role: role || 'user',
+        contact_info: contact_info || null,
+        disability_type: disability_type || null
+      }
+    });
+  } catch (err) {
+    console.error('Register error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 // ============================================
 // USERS
