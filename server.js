@@ -111,12 +111,45 @@ app.get('/api/exercises/:id', async (req, res) => {
 app.get('/api/exercises', async (_, res) => {
   try {
     const [rows] = await pool.execute(
-      'SELECT exercise_id, exercise_name, description, difficulty FROM exercise ORDER BY exercise_name'
+      `SELECT 
+         exercise_id, 
+         exercise_name, 
+         description, 
+         difficulty_level, 
+         equipment_needed, 
+         target_muscle_group
+       FROM exercise
+       ORDER BY exercise_name`
     );
-    console.log('Exercises fetched:', rows.length, rows); // log to check difficulty
+
+    // Debug: log the first row to confirm
+    console.log('First exercise row:', rows[0]);
+
     res.json(rows);
   } catch (err) {
     console.error('Failed to fetch exercises:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+app.get('/api/exercises/:id', async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      `SELECT 
+         exercise_id, 
+         exercise_name, 
+         description, 
+         difficulty_level, 
+         equipment_needed, 
+         target_muscle_group
+       FROM exercise
+       WHERE exercise_id = ?`,
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Exercise not found' });
+    res.json(rows[0]);
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
@@ -261,7 +294,7 @@ app.post('/api/health-metrics/user/:id', async (req, res) => {
 app.get('/api/education', async (req, res) => {
   try {
     const { category } = req.query;
-    let query = 'SELECT content_id, title, category, url FROM educational_content';
+    let query = 'SELECT content_id, title, category, file_link, accessibility_features, url FROM educational_content';
     const params = [];
     if (category) {
       query += ' WHERE category = ?';
@@ -279,7 +312,7 @@ app.get('/api/education', async (req, res) => {
 app.get('/api/education/:id', async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      'SELECT content_id, title, category, url FROM educational_content WHERE content_id = ?',
+      'SELECT content_id, title, category, file_link, accessibility_features, url FROM educational_content WHERE content_id = ?',
       [req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Content not found' });
