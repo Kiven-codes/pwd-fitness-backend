@@ -137,7 +137,7 @@ app.get('/api/exercises', async (_, res) => {
        ORDER BY exercise_name`
     );
     
-    console.log('✅ Exercises fetched:', rows.length);
+    console.log('✅ Exercises fetched:', rows);
     res.json(rows);
   } catch (err) {
     console.error('❌ Failed to fetch exercises:', err.message);
@@ -394,7 +394,7 @@ app.post('/api/health-metrics/user/:id', async (req, res) => {
 app.get('/api/education', async (req, res) => {
   try {
     const { category } = req.query;
-    let query = 'SELECT content_id, title, category, file_link, accessibility_features, FROM educational_content';
+    let query = 'SELECT content_id, title, category, file_link, accessibility_features FROM educational_content';
     const params = [];
     if (category) {
       query += ' WHERE category = ?';
@@ -412,7 +412,7 @@ app.get('/api/education', async (req, res) => {
 app.get('/api/education/:id', async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      'SELECT content_id, title, category, file_link, accessibility_features, FROM educational_content WHERE content_id = ?',
+      'SELECT content_id, title, category, file_link, accessibility_features FROM educational_content WHERE content_id = ?',
       [req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Content not found' });
