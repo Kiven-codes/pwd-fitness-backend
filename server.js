@@ -67,6 +67,7 @@ app.get('/api/users/all', async (_, res) => {
     const [rows] = await pool.execute(
       'SELECT user_id, name, username, role, disability_type FROM user ORDER BY name'
     );
+    console.log('Users fetched:', rows.length);
     res.json(rows);
   } catch (err) {
     console.error('Failed to fetch users:', err.message);
@@ -80,16 +81,23 @@ app.get('/api/users/all', async (_, res) => {
 
 app.get('/api/exercises', async (_, res) => {
   try {
-    const [rows] = await pool.execute('SELECT * FROM exercise ORDER BY exercise_name');
+    const [rows] = await pool.execute(
+      'SELECT exercise_id, exercise_name, description FROM exercise ORDER BY exercise_name'
+    );
+    console.log('Exercises fetched:', rows.length);
     res.json(rows);
   } catch (err) {
+    console.error('Failed to fetch exercises:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
 app.get('/api/exercises/:id', async (req, res) => {
   try {
-    const [rows] = await pool.execute('SELECT * FROM exercise WHERE exercise_id = ?', [req.params.id]);
+    const [rows] = await pool.execute(
+      'SELECT exercise_id, exercise_name, description FROM exercise WHERE exercise_id = ?',
+      [req.params.id]
+    );
     if (!rows.length) return res.status(404).json({ error: 'Exercise not found' });
     res.json(rows[0]);
   } catch (err) {
@@ -163,14 +171,8 @@ app.post('/api/progress', async (req, res) => {
 
 app.get('/api/progress/user/:id/weekly', async (req, res) => {
   try {
-    // Check if column exists before querying
-    const [columns] = await pool.execute(
-      "SHOW COLUMNS FROM progress_tracking LIKE 'progress_date'"
-    );
-
-    if (!columns.length) {
-      return res.status(500).json({ error: "Column 'progress_date' does not exist" });
-    }
+    const [columns] = await pool.execute("SHOW COLUMNS FROM progress_tracking LIKE 'progress_date'");
+    if (!columns.length) return res.status(500).json({ error: "Column 'progress_date' does not exist" });
 
     const [rows] = await pool.execute(
       `SELECT DATE(progress_date) as day, SUM(duration_minutes) as total_minutes, SUM(calories_burned) as calories
@@ -208,18 +210,11 @@ app.get('/api/progress/user/:id/summary', async (req, res) => {
 app.get('/api/health-metrics/user/:id', async (req, res) => {
   try {
     const limit = Number(req.query.limit) || 5;
-
-    // Check if recorded_at exists
-    const [columns] = await pool.execute(
-      "SHOW COLUMNS FROM health_metric LIKE 'recorded_at'"
-    );
-
-    if (!columns.length) {
-      return res.status(500).json({ error: "Column 'recorded_at' does not exist" });
-    }
+    const [columns] = await pool.execute("SHOW COLUMNS FROM health_metric LIKE 'recorded_at'");
+    if (!columns.length) return res.status(500).json({ error: "Column 'recorded_at' does not exist" });
 
     const [rows] = await pool.execute(
-      'SELECT * FROM health_metric WHERE user_id = ? ORDER BY recorded_at DESC LIMIT ?',
+      'SELECT metric_id, metric_type, metric_value, unit, recorded_at FROM health_metric WHERE user_id = ? ORDER BY recorded_at DESC LIMIT ?',
       [req.params.id, limit]
     );
     res.json(rows);
@@ -249,15 +244,17 @@ app.post('/api/health-metrics/user/:id', async (req, res) => {
 app.get('/api/education', async (req, res) => {
   try {
     const { category } = req.query;
-    let query = 'SELECT * FROM educational_content';
+    let query = 'SELECT content_id, title, category, url FROM educational_content';
     const params = [];
     if (category) {
       query += ' WHERE category = ?';
       params.push(category);
     }
     const [rows] = await pool.execute(query, params);
+    console.log('Education fetched:', rows.length);
     res.json(rows);
   } catch (err) {
+    console.error('Failed to fetch educational content:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -265,7 +262,7 @@ app.get('/api/education', async (req, res) => {
 app.get('/api/education/:id', async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      'SELECT * FROM educational_content WHERE content_id = ?',
+      'SELECT content_id, title, category, url FROM educational_content WHERE content_id = ?',
       [req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Content not found' });
