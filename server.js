@@ -17,10 +17,11 @@ app.use(express.json());
 
 // MySQL Connection Pool
 const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
+  host: process.env.DB_HOST || 'switchyard.proxy.rlwy.net',
   user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || 'JKcB@272006',
-  database: process.env.DB_NAME || 'pwd_fitness_db',
+  password: process.env.DB_PASSWORD || 'vnwFoleMcNsKJRoxPoZGanGeZEaLqrIq',
+  database: process.env.DB_NAME || 'pwd_db',
+  port: 57064,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
