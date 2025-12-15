@@ -118,6 +118,21 @@ app.get('/api/users/all', async (_, res) => {
   }
 });
 
+// GET all patients (PWD users)
+app.get('/api/users/patients', async (_, res) => {
+  try {
+    const [rows] = await pool.execute(
+      "SELECT user_id, name, username, contact_info, disability_type FROM user WHERE role = 'PWD' ORDER BY name"
+    );
+    console.log('Patients fetched:', rows.length);
+    res.json(rows);
+  } catch (err) {
+    console.error('Failed to fetch patients:', err.message);
+    res.status(500).json({ error: 'Failed to fetch patients' });
+  }
+});
+
+
 // ============================================
 // EXERCISES (FIXED)
 // ============================================
