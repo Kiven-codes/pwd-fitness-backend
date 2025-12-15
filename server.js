@@ -133,6 +133,18 @@ app.post('/api/auth/login', async (req, res) => {
 // ============================================
 
 // Get user profile
+// Get all users (Admin only)
+app.get('/api/users/all', async (req, res) => {
+  try {
+    const [users] = await pool.execute(
+      'SELECT user_id, name, age, gender, disability_type, contact_info, username, role, created_at FROM USER ORDER BY created_at DESC'
+    );
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/api/users/:id', async (req, res) => {
   try {
     const [users] = await pool.execute(
@@ -150,29 +162,19 @@ app.get('/api/users/:id', async (req, res) => {
   }
 });
 
-// Get all users (Admin only)
-app.get('/api/users/all', async (req, res) => {
-  try {
-    const [users] = await pool.execute(
-      'SELECT user_id, name, age, gender, disability_type, contact_info, username, role, created_at FROM USER ORDER BY created_at DESC'
-    );
-    res.json(users);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // Get all PWD users
 app.get('/api/users/pwds', async (req, res) => {
   try {
     const [pwds] = await pool.execute(
-      'SELECT user_id, name, age, gender, disability_type, contact_info FROM USER WHERE role = "PWD" ORDER BY name'
+      'SELECT user_id, name, age, gender, disability_type, contact_info FROM users WHERE role = "PWD" ORDER BY name'
     );
+    console.log('PWDs fetched:', pwds);
     res.json(pwds);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
+
 
 // Get PWD details (with disability info)
 app.get('/api/users/pwd/:id', async (req, res) => {
@@ -195,10 +197,11 @@ app.get('/api/users/pwd/:id', async (req, res) => {
 // Get user dashboard data
 app.get('/api/users/:id/dashboard', async (req, res) => {
   try {
-    const [results] = await pool.execute(
-      'CALL sp_get_user_dashboard(?)',
-      [req.params.id]
-    );
+    const [results] = await pool.query(
+  'CALL sp_get_user_dashboard(?)',
+  [req.params.id]
+);
+
     
     res.json({
       userInfo: results[0][0] || null,
@@ -318,10 +321,11 @@ app.post('/api/assignments', async (req, res) => {
   try {
     const { user_id, exercise_id, assigned_by, start_date, end_date, frequency } = req.body;
     
-    const [result] = await pool.execute(
-      'CALL sp_assign_exercise(?, ?, ?, ?, ?, ?)',
-      [user_id, exercise_id, assigned_by, start_date, end_date, frequency]
-    );
+    const [result] = await pool.query(
+  'CALL sp_assign_exercise(?, ?, ?, ?, ?, ?)',
+  [user_id, exercise_id, assigned_by, start_date, end_date, frequency]
+);
+
     
     res.status(201).json({
       message: 'Exercise assigned successfully',
@@ -406,10 +410,11 @@ app.post('/api/progress', async (req, res) => {
   try {
     const { assignment_id, duration_minutes, calories_burned, remarks, progress_score } = req.body;
     
-    const [result] = await pool.execute(
-      'CALL sp_log_progress(?, ?, ?, ?, ?)',
-      [assignment_id, duration_minutes, calories_burned, remarks, progress_score]
-    );
+    const [result] = await pool.query(
+  'CALL sp_log_progress(?, ?, ?, ?, ?)',
+  [assignment_id, duration_minutes, calories_burned, remarks, progress_score]
+);
+
     
     res.status(201).json({
       message: 'Progress logged successfully',
@@ -423,20 +428,20 @@ app.post('/api/progress', async (req, res) => {
 // Get weekly progress
 app.get('/api/progress/user/:userId/weekly', async (req, res) => {
   try {
-    const [progress] = await pool.execute(
+    const [progress] = await pool.query(
       `SELECT 
-        COUNT(DISTINCT pt.progress_id) as total_sessions,
-        SUM(pt.duration_minutes) as total_minutes,
-        SUM(pt.calories_burned) as total_calories,
-        AVG(pt.progress_score) as avg_progress_score
+        COUNT(DISTINCT pt.progress_id) AS total_sessions,
+        SUM(CAST(pt.duration_minutes AS UNSIGNED)) AS total_minutes,
+        SUM(CAST(pt.calories_burned AS UNSIGNED)) AS total_calories,
+        AVG(CAST(pt.progress_score AS DECIMAL(10,2))) AS avg_progress_score
        FROM PROGRESS_TRACKING pt
        JOIN EXERCISE_ASSIGNMENT ea ON pt.assignment_id = ea.assignment_id
        WHERE ea.user_id = ?
        AND pt.date_completed >= DATE_SUB(NOW(), INTERVAL 7 DAY)`,
       [req.params.userId]
     );
-    
-    res.json(progress[0] || {
+
+    res.json(progress[0] ?? {
       total_sessions: 0,
       total_minutes: 0,
       total_calories: 0,
@@ -447,6 +452,7 @@ app.get('/api/progress/user/:userId/weekly', async (req, res) => {
   }
 });
 
+
 // ============================================
 // HEALTH METRICS ROUTES
 // ============================================
@@ -454,15 +460,14 @@ app.get('/api/progress/user/:userId/weekly', async (req, res) => {
 // Get health metrics for a user
 app.get('/api/health-metrics/user/:userId', async (req, res) => {
   try {
-    const limit = req.query.limit ? parseInt(req.query.limit, 10) : null;
+    const limit = Number.parseInt(req.query.limit, 10);
 
-    // First check if user is PWD
-    const [userCheck] = await pool.execute(
+    const [userCheck] = await pool.query(
       'SELECT role FROM USER WHERE user_id = ?',
       [req.params.userId]
     );
 
-    if (userCheck.length === 0 || userCheck[0].role !== 'PWD') {
+    if (!userCheck.length || userCheck[0].role !== 'PWD') {
       return res.json([]);
     }
 
@@ -473,12 +478,11 @@ app.get('/api/health-metrics/user/:userId', async (req, res) => {
       ORDER BY date_recorded DESC
     `;
 
-    // ⚠️ LIMIT cannot be parameterized
-    if (limit && Number.isInteger(limit) && limit > 0) {
+    if (Number.isInteger(limit) && limit > 0) {
       query += ` LIMIT ${limit}`;
     }
 
-    const [metrics] = await pool.execute(query, [req.params.userId]);
+    const [metrics] = await pool.query(query, [req.params.userId]);
     res.json(metrics);
 
   } catch (error) {
