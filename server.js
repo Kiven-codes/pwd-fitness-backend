@@ -65,7 +65,7 @@ app.post('/api/auth/login', async (req, res) => {
 app.get('/api/users/all', async (_, res) => {
   try {
     const [rows] = await pool.execute(
-      'SELECT user_id, name, username, role, disability_type FROM user ORDER BY name'
+      'SELECT user_id, name, username, role, contact_info, disability_type FROM user ORDER BY name'
     );
     console.log('Users fetched:', rows.length);
     res.json(rows);
