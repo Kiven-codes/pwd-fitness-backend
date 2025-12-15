@@ -20,7 +20,7 @@ const pool = mysql.createPool({
   password: process.env.DB_PASSWORD || 'vnwFoleMcNsKJRoxPoZGanGeZEaLqrIq',
   database: process.env.DB_NAME || 'pwd_db',
   port: process.env.DB_PORT || 57064,
-  connectionLimit: 10,
+  connectionLimit: 10
 });
 
 // Test DB connection
@@ -50,8 +50,8 @@ app.post('/api/auth/login', async (req, res) => {
         id: user.user_id,
         name: user.name,
         role: user.role,
-        disability_type: user.disability_type,
-      },
+        disability_type: user.disability_type
+      }
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -85,7 +85,6 @@ app.get('/api/exercises', async (_, res) => {
       'SELECT exercise_id, exercise_name, description FROM exercise ORDER BY exercise_name'
     );
     console.log('Exercises fetched:', rows.length);
-    if (!rows.length) console.warn('⚠️ No exercises found in database.');
     res.json(rows);
   } catch (err) {
     console.error('Failed to fetch exercises:', err.message);
@@ -107,6 +106,138 @@ app.get('/api/exercises/:id', async (req, res) => {
 });
 
 // ============================================
+// ASSIGNMENTS
+// ============================================
+
+app.get('/api/assignments/user/:id', async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      'SELECT * FROM exercise_assignment WHERE user_id = ? ORDER BY start_date DESC',
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/assignments/all', async (_, res) => {
+  try {
+    const [rows] = await pool.execute(
+      `SELECT ea.*, u.name AS user_name, e.exercise_name
+       FROM exercise_assignment ea
+       JOIN user u ON ea.user_id = u.user_id
+       JOIN exercise e ON ea.exercise_id = e.exercise_id
+       ORDER BY ea.start_date DESC`
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/assignments', async (req, res) => {
+  try {
+    const { user_id, exercise_id, assigned_by, start_date, end_date, frequency } = req.body;
+    const [result] = await pool.execute(
+      `INSERT INTO exercise_assignment (user_id, exercise_id, assigned_by, start_date, end_date, frequency)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [user_id, exercise_id, assigned_by, start_date, end_date, frequency]
+    );
+    res.status(201).json({ id: result.insertId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================
+// PROGRESS
+// ============================================
+
+app.post('/api/progress', async (req, res) => {
+  try {
+    const { assignment_id, duration_minutes, calories_burned, progress_score, remarks } = req.body;
+    const [result] = await pool.execute(
+      `INSERT INTO progress_tracking
+       (assignment_id, duration_minutes, calories_burned, progress_score, remarks)
+       VALUES (?, ?, ?, ?, ?)`,
+      [assignment_id, duration_minutes, calories_burned, progress_score, remarks]
+    );
+    res.status(201).json({ id: result.insertId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/progress/user/:id/weekly', async (req, res) => {
+  try {
+    const [columns] = await pool.execute("SHOW COLUMNS FROM progress_tracking LIKE 'progress_date'");
+    if (!columns.length) return res.status(500).json({ error: "Column 'progress_date' does not exist" });
+
+    const [rows] = await pool.execute(
+      `SELECT DATE(progress_date) as day, SUM(duration_minutes) as total_minutes, SUM(calories_burned) as calories
+       FROM progress_tracking
+       WHERE user_id = ? AND progress_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+       GROUP BY DATE(progress_date)
+       ORDER BY day`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Weekly progress fetch failed:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/progress/user/:id/summary', async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      `SELECT SUM(duration_minutes) as total_minutes, SUM(calories_burned) as total_calories
+       FROM progress_tracking
+       WHERE user_id = ?`,
+      [req.params.id]
+    );
+    res.json(rows[0] || {});
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================
+// HEALTH METRICS
+// ============================================
+
+app.get('/api/health-metrics/user/:id', async (req, res) => {
+  try {
+    const limit = Number(req.query.limit) || 5;
+    const [columns] = await pool.execute("SHOW COLUMNS FROM health_metric LIKE 'recorded_at'");
+    if (!columns.length) return res.status(500).json({ error: "Column 'recorded_at' does not exist" });
+
+    const [rows] = await pool.execute(
+      'SELECT metric_id, metric_type, metric_value, unit, recorded_at FROM health_metric WHERE user_id = ? ORDER BY recorded_at DESC LIMIT ?',
+      [req.params.id, limit]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Health metrics fetch failed:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/health-metrics/user/:id', async (req, res) => {
+  try {
+    const { metric_type, metric_value, unit } = req.body;
+    const [result] = await pool.execute(
+      'INSERT INTO health_metric (user_id, metric_type, metric_value, unit) VALUES (?, ?, ?, ?)',
+      [req.params.id, metric_type, metric_value, unit]
+    );
+    res.status(201).json({ id: result.insertId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================
 // EDUCATION
 // ============================================
 
@@ -121,7 +252,6 @@ app.get('/api/education', async (req, res) => {
     }
     const [rows] = await pool.execute(query, params);
     console.log('Education fetched:', rows.length);
-    if (!rows.length) console.warn('⚠️ No educational content found in database.');
     res.json(rows);
   } catch (err) {
     console.error('Failed to fetch educational content:', err.message);
