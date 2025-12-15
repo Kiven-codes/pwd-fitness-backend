@@ -59,6 +59,22 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // ============================================
+// USERS
+// ============================================
+
+app.get('/api/users/all', async (_, res) => {
+  try {
+    const [rows] = await pool.execute(
+      'SELECT user_id, name, username, role, disability_type FROM user ORDER BY name'
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Failed to fetch users:', err.message);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// ============================================
 // EXERCISES
 // ============================================
 
@@ -147,6 +163,15 @@ app.post('/api/progress', async (req, res) => {
 
 app.get('/api/progress/user/:id/weekly', async (req, res) => {
   try {
+    // Check if column exists before querying
+    const [columns] = await pool.execute(
+      "SHOW COLUMNS FROM progress_tracking LIKE 'progress_date'"
+    );
+
+    if (!columns.length) {
+      return res.status(500).json({ error: "Column 'progress_date' does not exist" });
+    }
+
     const [rows] = await pool.execute(
       `SELECT DATE(progress_date) as day, SUM(duration_minutes) as total_minutes, SUM(calories_burned) as calories
        FROM progress_tracking
@@ -157,6 +182,7 @@ app.get('/api/progress/user/:id/weekly', async (req, res) => {
     );
     res.json(rows);
   } catch (err) {
+    console.error('Weekly progress fetch failed:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -182,12 +208,23 @@ app.get('/api/progress/user/:id/summary', async (req, res) => {
 app.get('/api/health-metrics/user/:id', async (req, res) => {
   try {
     const limit = Number(req.query.limit) || 5;
+
+    // Check if recorded_at exists
+    const [columns] = await pool.execute(
+      "SHOW COLUMNS FROM health_metric LIKE 'recorded_at'"
+    );
+
+    if (!columns.length) {
+      return res.status(500).json({ error: "Column 'recorded_at' does not exist" });
+    }
+
     const [rows] = await pool.execute(
       'SELECT * FROM health_metric WHERE user_id = ? ORDER BY recorded_at DESC LIMIT ?',
       [req.params.id, limit]
     );
     res.json(rows);
   } catch (err) {
+    console.error('Health metrics fetch failed:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
