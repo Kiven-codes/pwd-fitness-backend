@@ -116,7 +116,7 @@ app.get('/api/users/all', async (_, res) => {
     console.error('Failed to fetch users:', err.message);
     res.status(500).json({ error: 'Failed to fetch users' });
   }
-});
+})
 
 // GET all patients (PWD users)
 app.get('/api/users/patients', async (_, res) => {
@@ -131,20 +131,6 @@ app.get('/api/users/patients', async (_, res) => {
     res.status(500).json({ error: 'Failed to fetch patients' });
   }
 });
-
-app.get('/api/users/patients', async (_, res) => {
-  try {
-    const [rows] = await pool.execute(
-      `SELECT user_id, name, username, role, contact_info, disability_type 
-       FROM user WHERE role = 'PWD' ORDER BY name`
-    );
-    res.json(rows);
-  } catch (err) {
-    console.error('Failed to fetch patients:', err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
 
 // ============================================
 // EXERCISES (FIXED)
