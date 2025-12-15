@@ -197,6 +197,61 @@ app.get('/api/exercises/:id', async (req, res) => {
   }
 });
 
+// Update exercise
+app.put('/api/exercises/:id', async (req, res) => {
+  try {
+    const { exercise_name, description, difficulty_level, equipment_needed, target_muscle_group } = req.body;
+    
+    const [result] = await pool.execute(
+      `UPDATE exercise 
+       SET exercise_name = ?, description = ?, difficulty_level = ?, 
+           equipment_needed = ?, target_muscle_group = ?
+       WHERE exercise_id = ?`,
+      [exercise_name, description, difficulty_level, equipment_needed, target_muscle_group, req.params.id]
+    );
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Exercise not found' });
+    }
+    
+    res.json({ message: 'Exercise updated successfully' });
+  } catch (err) {
+    console.error('Update exercise error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete exercise
+app.delete('/api/exercises/:id', async (req, res) => {
+  try {
+    // Check if exercise is assigned to any user
+    const [assignments] = await pool.execute(
+      'SELECT COUNT(*) as count FROM exercise_assignment WHERE exercise_id = ?',
+      [req.params.id]
+    );
+    
+    if (assignments[0].count > 0) {
+      return res.status(400).json({ 
+        error: 'Cannot delete exercise. It is currently assigned to users.' 
+      });
+    }
+    
+    const [result] = await pool.execute(
+      'DELETE FROM exercise WHERE exercise_id = ?',
+      [req.params.id]
+    );
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Exercise not found' });
+    }
+    
+    res.json({ message: 'Exercise deleted successfully' });
+  } catch (err) {
+    console.error('Delete exercise error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 // ============================================
 // ASSIGNMENTS
