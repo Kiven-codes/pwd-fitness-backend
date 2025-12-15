@@ -19,7 +19,7 @@ app.use(express.json());
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || 'your_password',
+  password: process.env.DB_PASSWORD || 'JKcB@272006',
   database: process.env.DB_NAME || 'pwd_fitness_db',
   waitForConnections: true,
   connectionLimit: 10,
@@ -454,33 +454,39 @@ app.get('/api/progress/user/:userId/weekly', async (req, res) => {
 // Get health metrics for a user
 app.get('/api/health-metrics/user/:userId', async (req, res) => {
   try {
-    const { limit } = req.query;
-    
+    const limit = req.query.limit ? parseInt(req.query.limit, 10) : null;
+
     // First check if user is PWD
     const [userCheck] = await pool.execute(
       'SELECT role FROM USER WHERE user_id = ?',
       [req.params.userId]
     );
-    
+
     if (userCheck.length === 0 || userCheck[0].role !== 'PWD') {
-      return res.json([]); // Return empty array if not PWD
+      return res.json([]);
     }
-    
-    let query = 'SELECT * FROM HEALTH_METRIC WHERE user_id = ? ORDER BY date_recorded DESC';
-    const params = [req.params.userId];
-    
-    if (limit) {
-      query += ' LIMIT ?';
-      params.push(parseInt(limit));
+
+    let query = `
+      SELECT *
+      FROM HEALTH_METRIC
+      WHERE user_id = ?
+      ORDER BY date_recorded DESC
+    `;
+
+    // ⚠️ LIMIT cannot be parameterized
+    if (limit && Number.isInteger(limit) && limit > 0) {
+      query += ` LIMIT ${limit}`;
     }
-    
-    const [metrics] = await pool.execute(query, params);
+
+    const [metrics] = await pool.execute(query, [req.params.userId]);
     res.json(metrics);
+
   } catch (error) {
     console.error('Health metrics error:', error);
     res.status(500).json({ error: error.message });
   }
 });
+
 
 // Add health metric
 app.post('/api/health-metrics', async (req, res) => {
