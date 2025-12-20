@@ -10,9 +10,8 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// ============================================
+
 // DATABASE
-// ============================================
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'switchyard.proxy.rlwy.net',
@@ -26,14 +25,13 @@ const pool = mysql.createPool({
 // Test DB connection
 pool.getConnection()
   .then(conn => {
-    console.log('✅ MySQL connected');
+    console.log('MySQL connected');
     conn.release();
   })
-  .catch(err => console.error('❌ MySQL connection failed:', err.message));
+  .catch(err => console.error('MySQL connection failed:', err.message));
 
-// ============================================
+
 // AUTH
-// ============================================
 
 app.post('/api/auth/login', async (req, res) => {
   try {
@@ -101,9 +99,8 @@ app.post('/api/auth/register', async (req, res) => {
 });
 
 
-// ============================================
+
 // USERS
-// ============================================
 
 app.get('/api/users/all', async (_, res) => {
   try {
@@ -132,9 +129,8 @@ app.get('/api/users/patients', async (_, res) => {
   }
 });
 
-// ============================================
-// EXERCISES (FIXED)
-// ============================================
+
+// EXERCISES 
 
 // Get all exercises
 app.get('/api/exercises', async (_, res) => {
@@ -151,10 +147,10 @@ app.get('/api/exercises', async (_, res) => {
        ORDER BY exercise_name`
     );
     
-    console.log('✅ Exercises fetched:', rows);
+    console.log('Exercises fetched:', rows);
     res.json(rows);
   } catch (err) {
-    console.error('❌ Failed to fetch exercises:', err.message);
+    console.error('Failed to fetch exercises:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -181,7 +177,7 @@ app.get('/api/exercises/:id', async (req, res) => {
     
     res.json(rows[0]);
   } catch (err) {
-    console.error('❌ Failed to fetch exercise:', err.message);
+    console.error('Failed to fetch exercise:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -198,13 +194,13 @@ app.post('/api/exercises', async (req, res) => {
       [exercise_name, description, difficulty_level || 'Easy', equipment_needed || null, target_muscle_group || null]
     );
     
-    console.log('✅ Exercise added:', result.insertId);
+    console.log('Exercise added:', result.insertId);
     res.status(201).json({ 
       message: 'Exercise added successfully',
       exercise_id: result.insertId 
     });
   } catch (err) {
-    console.error('❌ Failed to add exercise:', err.message);
+    console.error('Failed to add exercise:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -229,10 +225,10 @@ app.put('/api/exercises/:id', async (req, res) => {
       return res.status(404).json({ error: 'Exercise not found' });
     }
     
-    console.log('✅ Exercise updated:', req.params.id);
+    console.log('Exercise updated:', req.params.id);
     res.json({ message: 'Exercise updated successfully' });
   } catch (err) {
-    console.error('❌ Failed to update exercise:', err.message);
+    console.error('Failed to update exercise:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -240,7 +236,7 @@ app.put('/api/exercises/:id', async (req, res) => {
 // Delete exercise
 app.delete('/api/exercises/:id', async (req, res) => {
   try {
-    // Check if exercise is assigned
+  
     const [assignments] = await pool.execute(
       'SELECT COUNT(*) as count FROM exercise_assignment WHERE exercise_id = ?',
       [req.params.id]
@@ -269,9 +265,8 @@ app.delete('/api/exercises/:id', async (req, res) => {
   }
 });
 
-// ============================================
+
 // ASSIGNMENTS
-// ============================================
 
 app.get('/api/assignments/user/:id', async (req, res) => {
   try {
@@ -314,9 +309,8 @@ app.post('/api/assignments', async (req, res) => {
   }
 });
 
-// ============================================
+
 // PROGRESS
-// ============================================
 
 app.post('/api/progress', async (req, res) => {
   try {
@@ -367,9 +361,8 @@ app.get('/api/progress/user/:id/summary', async (req, res) => {
   }
 });
 
-// ============================================
+
 // HEALTH METRICS
-// ============================================
 
 app.get('/api/health-metrics/user/:id', async (req, res) => {
   try {
@@ -401,9 +394,8 @@ app.post('/api/health-metrics/user/:id', async (req, res) => {
   }
 });
 
-// ============================================
+
 // EDUCATION
-// ============================================
 
 app.get('/api/education', async (req, res) => {
   try {
@@ -449,10 +441,9 @@ app.post('/api/education/:id/access', async (req, res) => {
   }
 });
 
-// ============================================
+
 // START SERVER
-// ============================================
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
